@@ -1,0 +1,38 @@
+# *******************************************************************************
+# Copyright (c) 2026 Contributors to the Eclipse Foundation
+#
+# See the NOTICE file(s) distributed with this work for additional
+# information regarding copyright ownership.
+#
+# This program and the accompanying materials are made available under the
+# terms of the Apache License Version 2.0 which is available at
+# https://www.apache.org/licenses/LICENSE-2.0
+#
+# SPDX-License-Identifier: Apache-2.0
+# *******************************************************************************
+title: "chore(ci): align SCORE documentation workflows"
+description: |
+  Use the shared SCORE documentation build and publish workflows as documented
+  by cicd-workflows. Keep repository-specific workflow refs when they are at
+  least the policy baseline or cannot be safely ordered.
+when:
+  file_contains:
+    path: .github/workflows/docs.yml
+    pattern: '(?m)^\s*uses:\s+eclipse-score/cicd-workflows/\.github/workflows/docs\.yml@'
+ensure:
+  - type: synchronize_file
+    path: .github/workflows/docs.yml
+    source: docs.yml
+    preserve_workflow_content: true
+    preserve_reusable_workflow_refs:
+      - workflow: eclipse-score/cicd-workflows/.github/workflows/docs.yml
+        minimum_version: 0.0.3
+    rationale: Use the documented unprivileged documentation build workflow.
+  - type: synchronize_file
+    path: .github/workflows/docs-publish.yml
+    source: docs-publish.yml
+    preserve_workflow_content: true
+    preserve_reusable_workflow_refs:
+      - workflow: eclipse-score/cicd-workflows/.github/workflows/docs-publish.yml
+        minimum_version: 0.0.3
+    rationale: Publish only successful documentation artifacts with the documented workflow.

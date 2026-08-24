@@ -40,7 +40,6 @@ def load_template(extension: str) -> str:
     return templates[extension]
 
 
-
 # test that offset matches the length of the shebang line including trailing newlines
 def test_detect_shebang_offset_counts_trailing_newlines(tmp_path):
     cr_checker = load_cr_checker_module()
@@ -73,7 +72,7 @@ def test_detect_shebang_offset_counts_trailing_newlines(tmp_path):
         "rst",
     ]
 )
-def prepare_test_with_header(request: SubRequest, tmp_path: PosixPath) -> tuple:
+def prepare_test_with_header(request, tmp_path: Path) -> tuple:
     extension = request.param
     test_file = tmp_path / ("file." + extension)
     header_template = load_template(extension)
@@ -104,11 +103,10 @@ def prepare_test_with_header(request: SubRequest, tmp_path: PosixPath) -> tuple:
         "rst",
     ]
 )
-def prepare_test_no_header(request: SubRequest, tmp_path: PosixPath) -> tuple:
+def prepare_test_no_header(request, tmp_path: Path) -> tuple:
     extension = request.param
     test_file = tmp_path / ("file." + extension)
     header_template = load_template(extension)
-    current_year = datetime.now().year
     test_file.write_text(
         "some content\n",
         encoding="utf-8",
@@ -291,7 +289,8 @@ def test_process_files_accepts_flexible_border(tmp_path):
         " * terms of the Apache License Version 2.0 which is available at\n"
         " * https://www.apache.org/licenses/LICENSE-2.0\n"
         " *\n"
-        " * SPDX-" "License-Identifier: Apache-2.0\n"
+        " * SPDX-"
+        "License-Identifier: Apache-2.0\n"
         " /////////////////////////////////////////////////////////////////////////////////////\n"
     )
     test_file.write_text(header + "int main() {}\n", encoding="utf-8")
