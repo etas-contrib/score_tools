@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from ..bazel import find_starlark_calls, starlark_string_arguments
 from ..errors import RepoPolicySyncError
 from ..models import Change, EnsureBazelDependency, EnsureOperation
 from ._validation import (
@@ -30,9 +31,6 @@ from ._validation import (
 )
 
 _NUMERIC_VERSION = re.compile(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\Z")
-_BAZEL_DEP_CALL = re.compile(r"bazel_dep\s*\((.*?)\)", re.DOTALL)
-_NAME_ARGUMENT = re.compile(r"\bname\s*=\s*[\"']([^\"']+)[\"']")
-_VERSION_ARGUMENT = re.compile(r"\bversion\s*=\s*([\"'])([^\"']*)\1")
 
 
 @dataclass(frozen=True)
@@ -137,24 +135,24 @@ def _module_dependency(
         raise RepoPolicySyncError(f"{operation.module_file} must exist")
     text = path.read_text(encoding="utf-8")
     calls = []
-    for match in _BAZEL_DEP_CALL.finditer(text):
-        name_matches = list(_NAME_ARGUMENT.finditer(match.group(1)))
+    for call in find_starlark_calls(text, "bazel_dep"):
+        name_matches = starlark_string_arguments(text, call, "name")
         if any(
-            name_match.group(1) == operation.module_name for name_match in name_matches
+            name_match.value == operation.module_name for name_match in name_matches
         ):
             if len(name_matches) != 1:
                 raise RepoPolicySyncError(
                     f"{operation.module_file} bazel_dep for {operation.module_name!r} "
                     "must declare name exactly once"
                 )
-            calls.append(match)
+            calls.append(call)
     if len(calls) > 1:
         raise RepoPolicySyncError(
             f"{operation.module_file} must contain at most one bazel_dep for {operation.module_name!r}"
         )
     if not calls:
         return None
-    version_matches = list(_VERSION_ARGUMENT.finditer(calls[0].group(1)))
+    version_matches = starlark_string_arguments(text, calls[0], "version")
     if not version_matches:
         raise RepoPolicySyncError(
             f'{operation.module_file} bazel_dep for {operation.module_name!r} must declare version = "X.Y.Z"'
@@ -163,7 +161,7 @@ def _module_dependency(
         raise RepoPolicySyncError(
             f"{operation.module_file} bazel_dep for {operation.module_name!r} must declare version exactly once"
         )
-    version = version_matches[0].group(2)
+    version = version_matches[0].value
     if _parse_version(version) is None:
         raise RepoPolicySyncError(
             f"{operation.module_file} bazel_dep for {operation.module_name!r} must use X.Y.Z, found {version!r}"

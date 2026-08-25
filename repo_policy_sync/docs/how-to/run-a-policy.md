@@ -71,6 +71,7 @@ policy-owned pull requests:
 uv run score-repo-policy-sync \
   --org eclipse-score \
   --repo reference_integration \
+  --policy-dir policies \
   --policy minimum-bazel-version \
   --apply
 ```

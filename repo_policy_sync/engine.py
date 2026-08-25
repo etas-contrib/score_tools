@@ -20,15 +20,16 @@ import shlex
 import subprocess
 from pathlib import Path
 
-from .bazel import matches_bazel_dependency_condition, parse_bazel_version
+from .bazel import (
+    find_starlark_calls,
+    matches_bazel_dependency_condition,
+    parse_bazel_version,
+    starlark_string_arguments,
+)
 from .errors import CommandError, redact_sensitive_text
 from .models import Change, Evaluation, Policy, SynchronizeBazelDependencies
 from .operations import apply as apply_operation
 from .operations import describe_changes
-
-_BAZEL_DEP_CALL = re.compile(r"bazel_dep\s*\((.*?)\)", re.DOTALL)
-_NAME_ARGUMENT = re.compile(r"\bname\s*=\s*[\"']([^\"']+)[\"']")
-_VERSION_ARGUMENT = re.compile(r"\bversion\s*=\s*[\"']([^\"']+)[\"']")
 
 
 def evaluate_policy(
@@ -135,13 +136,13 @@ def _matches_bazel_condition(root: Path, policy: Policy) -> bool:
         return False
     text = module_file.read_text(encoding="utf-8")
     dependencies: dict[str, tuple[int, int, int] | None] = {}
-    for call in _BAZEL_DEP_CALL.finditer(text):
-        name_match = _NAME_ARGUMENT.search(call.group(1))
-        if name_match is None:
+    for call in find_starlark_calls(text, "bazel_dep"):
+        name_matches = starlark_string_arguments(text, call, "name")
+        if not name_matches:
             continue
-        version_match = _VERSION_ARGUMENT.search(call.group(1))
-        dependencies[name_match.group(1)] = (
-            parse_bazel_version(version_match.group(1)) if version_match else None
+        version_matches = starlark_string_arguments(text, call, "version")
+        dependencies[name_matches[0].value] = (
+            parse_bazel_version(version_matches[0].value) if version_matches else None
         )
     # A policy can require a complete set and also accept one of several names.
     dependency_names = set(dependencies)

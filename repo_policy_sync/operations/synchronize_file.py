@@ -217,10 +217,26 @@ def _merge_workflow_content(
     # top-level write permissions would apply to every job in this workflow.
     merged = _remove_top_level_section(merged, "permissions")
 
-    if rules and not any(
-        re.search(re.escape(workflow) + r"@", merged) for workflow, _ in rules
-    ):
-        merged = _append_workflow_job(merged, source, rules)
+    if rules:
+        source_jobs = _top_level_section(source, "jobs")
+        source_job = (
+            _matching_job_block(source[source_jobs[0] : source_jobs[1]], rules)
+            if source_jobs is not None
+            else None
+        )
+        if source_job is not None:
+            existing_jobs = _top_level_section(merged, "jobs")
+            existing_job = (
+                _matching_job_location(
+                    merged[existing_jobs[0] : existing_jobs[1]], rules
+                )
+                if existing_jobs is not None
+                else None
+            )
+            if existing_jobs is not None and existing_job is not None:
+                merged = _merge_matching_job_permissions(merged, source, rules)
+            else:
+                merged = _append_workflow_job(merged, source, rules)
     return merged
 
 
@@ -304,6 +320,41 @@ def _append_workflow_job(
     return prefix + separator + source_job + existing[end:]
 
 
+def _merge_matching_job_permissions(
+    existing: str,
+    source: str,
+    rules: tuple[tuple[str, tuple[int, int, int]], ...],
+) -> str:
+    existing_jobs = _top_level_section(existing, "jobs")
+    source_jobs = _top_level_section(source, "jobs")
+    assert existing_jobs is not None
+    assert source_jobs is not None
+    existing_jobs_text = existing[existing_jobs[0] : existing_jobs[1]]
+    source_jobs_text = source[source_jobs[0] : source_jobs[1]]
+    existing_location = _matching_job_location(existing_jobs_text, rules)
+    source_location = _matching_job_location(source_jobs_text, rules)
+    assert existing_location is not None
+    assert source_location is not None
+    existing_job_start, existing_job_end = existing_location
+    source_job_start, source_job_end = source_location
+    existing_job = existing_jobs_text[existing_job_start:existing_job_end]
+    source_job = source_jobs_text[source_job_start:source_job_end]
+    source_permissions_location = _nested_job_section(source_job, "permissions")
+    if source_permissions_location is None:
+        return existing
+    source_permissions = source_job[
+        source_permissions_location[0] : source_permissions_location[1]
+    ]
+    existing_permissions = _nested_job_section(existing_job, "permissions")
+    if existing_permissions is None:
+        insertion = existing_jobs[0] + existing_job_end
+        return existing[:insertion] + source_permissions + existing[insertion:]
+    permission_start, permission_end = existing_permissions
+    absolute_start = existing_jobs[0] + existing_job_start + permission_start
+    absolute_end = existing_jobs[0] + existing_job_start + permission_end
+    return existing[:absolute_start] + source_permissions + existing[absolute_end:]
+
+
 def _job_name(job_block: str) -> str | None:
     match = re.match(r"  ([^\s#][^:\n]*):", job_block)
     return match.group(1) if match is not None else None
@@ -313,6 +364,14 @@ def _matching_job_block(
     jobs_section: str,
     rules: tuple[tuple[str, tuple[int, int, int]], ...],
 ) -> str | None:
+    location = _matching_job_location(jobs_section, rules)
+    return jobs_section[location[0] : location[1]] if location is not None else None
+
+
+def _matching_job_location(
+    jobs_section: str,
+    rules: tuple[tuple[str, tuple[int, int, int]], ...],
+) -> tuple[int, int] | None:
     job_lines = list(
         re.finditer(r"(?m)^  ([^\s#][^:\n]*):[^\n]*(?:\n|$)", jobs_section)
     )
@@ -324,7 +383,17 @@ def _matching_job_block(
         )
         block = jobs_section[match.start() : end]
         if any(re.search(re.escape(workflow) + r"@", block) for workflow, _ in rules):
-            return block
+            return match.start(), end
+    return None
+
+
+def _nested_job_section(text: str, key: str) -> tuple[int, int] | None:
+    lines = list(re.finditer(r"(?m)^    ([^\s#][^:\n]*):[^\n]*(?:\n|$)", text))
+    for index, match in enumerate(lines):
+        if match.group(1).strip().strip("\"'") != key:
+            continue
+        end = lines[index + 1].start() if index + 1 < len(lines) else len(text)
+        return match.start(), end
     return None
 
 

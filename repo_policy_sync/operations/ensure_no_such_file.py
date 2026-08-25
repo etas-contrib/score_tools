@@ -46,11 +46,11 @@ class EnsureNoSuchFileOperation:
     ) -> tuple[Change, ...]:
         assert isinstance(operation, EnsureNoSuchFile)
         path = root / operation.path
-        if path.is_dir():
+        if path.is_dir() and not path.is_symlink():
             raise RepoPolicySyncError(f"refusing to remove directory {operation.path}")
         return (
             (Change(operation.path, "remove file", operation.rationale),)
-            if path.exists()
+            if path.exists() or path.is_symlink()
             else ()
         )
 
@@ -63,8 +63,8 @@ class EnsureNoSuchFileOperation:
     ) -> None:
         assert isinstance(operation, EnsureNoSuchFile)
         path = root / operation.path
-        if not path.exists():
+        if not path.exists() and not path.is_symlink():
             return
-        if path.is_dir():
+        if path.is_dir() and not path.is_symlink():
             raise RepoPolicySyncError(f"refusing to remove directory {operation.path}")
         path.unlink()
