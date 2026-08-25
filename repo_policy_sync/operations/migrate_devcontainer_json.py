@@ -21,7 +21,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from ..errors import RepoPolicySyncError
+from ..errors import PolicyError, RepoPolicySyncError
 from ..models import Change, EnsureOperation, MigrateDevcontainerJson
 from ._validation import (
     expect_keys,
@@ -32,22 +32,6 @@ from ._validation import (
 )
 
 _VERSION = re.compile(r"v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\Z")
-_DOCKERFILE_COMMENT = (
-    "# Use Dockerfile to get dependabot version bumps after new image is released"
-)
-_ECLIPSE_COPYRIGHT = """# *******************************************************************************
-# Copyright (c) 2026 Contributors to the Eclipse Foundation
-#
-# See the NOTICE file(s) distributed with this work for additional
-# information regarding copyright ownership.
-#
-# This program and the accompanying materials are made available under the
-# terms of the Apache License Version 2.0 which is available at
-# https://www.apache.org/licenses/LICENSE-2.0
-#
-# SPDX-License-Identifier: Apache-2.0
-# *******************************************************************************
-"""
 _IMAGE_PROPERTY = re.compile(
     r'(?m)^(?P<indent>[ \t]*)"image"\s*:\s*"(?P<image>[^"]+)"'
     r"(?P<comma>,?)(?P<tail>[ \t]*(?://[^\r\n]*)?(?:\r?\n|$))"
@@ -67,11 +51,39 @@ class MigrateDevcontainerJsonOperation:
                 "destination",
                 "dockerfile",
                 "image",
+                "dockerfile_comment",
                 "rationale",
-                "copyright_organization",
+                "copyright_header_source",
+                "copyright_header_organization",
             },
             source,
         )
+        copyright_header_source = raw.get("copyright_header_source")
+        copyright_header = None
+        if copyright_header_source is not None:
+            header_path = source.parent / safe_relative_path(
+                required_string(raw, "copyright_header_source", source), source
+            )
+            try:
+                copyright_header = header_path.read_text(encoding="utf-8")
+            except OSError as exc:
+                raise PolicyError(
+                    f"policy {source}: could not read copyright header source "
+                    f"{copyright_header_source}: {exc}"
+                ) from exc
+            except UnicodeError as exc:
+                raise PolicyError(
+                    f"policy {source}: copyright header source must be UTF-8: "
+                    f"{copyright_header_source}"
+                ) from exc
+        copyright_header_organization = optional_string(
+            raw, "copyright_header_organization", source
+        )
+        if copyright_header_organization is not None and copyright_header is None:
+            raise PolicyError(
+                f"policy {source}: copyright_header_organization requires "
+                "copyright_header_source"
+            )
         return MigrateDevcontainerJson(
             sources=tuple(
                 safe_relative_path(item, source)
@@ -84,10 +96,10 @@ class MigrateDevcontainerJsonOperation:
                 required_string(raw, "dockerfile", source), source
             ),
             image=required_string(raw, "image", source),
+            dockerfile_comment=optional_string(raw, "dockerfile_comment", source),
             rationale=optional_string(raw, "rationale", source),
-            copyright_organization=optional_string(
-                raw, "copyright_organization", source
-            ),
+            copyright_header=copyright_header,
+            copyright_header_organization=copyright_header_organization,
         )
 
     def describe_changes(
@@ -151,7 +163,11 @@ class MigrateDevcontainerJsonOperation:
         return tuple(changes)
 
     def apply(
-        self, root: Path, operation: EnsureOperation, *, organization: str | None = None
+        self,
+        root: Path,
+        operation: EnsureOperation,
+        *,
+        organization: str | None = None,
     ) -> None:
         assert isinstance(operation, MigrateDevcontainerJson)
         _, source = _find_source(root, operation)
@@ -250,12 +266,15 @@ def _migration_contents(
     )
     destination_contents = text[: match.start()] + replacement + text[match.end() :]
     copyright_header = (
-        _ECLIPSE_COPYRIGHT if operation.copyright_organization == organization else ""
+        operation.copyright_header
+        if operation.copyright_header_organization == organization
+        else ""
     )
     prefix = f"{copyright_header}\n" if copyright_header else ""
-    dockerfile_contents = (
-        f"{prefix}{_DOCKERFILE_COMMENT}\nFROM {operation.image}:{tag}\n"
+    comment = (
+        f"{operation.dockerfile_comment}\n" if operation.dockerfile_comment else ""
     )
+    dockerfile_contents = f"{prefix}{comment}FROM {operation.image}:{tag}\n"
     return dockerfile_contents, destination_contents
 
 

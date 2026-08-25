@@ -63,7 +63,11 @@ class EnsureBazelDependencyOperation:
         )
 
     def describe_changes(
-        self, root: Path, operation: EnsureOperation
+        self,
+        root: Path,
+        operation: EnsureOperation,
+        *,
+        organization: str | None = None,
     ) -> tuple[Change, ...]:
         assert isinstance(operation, EnsureBazelDependency)
         version = _docker_version(root, operation)
@@ -78,7 +82,13 @@ class EnsureBazelDependencyOperation:
             ),
         )
 
-    def apply(self, root: Path, operation: EnsureOperation) -> None:
+    def apply(
+        self,
+        root: Path,
+        operation: EnsureOperation,
+        *,
+        organization: str | None = None,
+    ) -> None:
         assert isinstance(operation, EnsureBazelDependency)
         version = _docker_version(root, operation)
         if _module_dependency(root, operation) is not None:

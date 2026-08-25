@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from ..errors import RepoPolicySyncError
-from ..models import EnsureLine, EnsureOperation
+from ..models import Change, EnsureLine, EnsureOperation
 from ._validation import (
     expect_keys,
     optional_string,
@@ -57,13 +57,20 @@ class EnsureLineOperation:
             rationale=optional_string(raw, "rationale", source),
         )
 
-    def describe_change(self, path: Path, operation: EnsureOperation) -> str | None:
+    def describe_changes(
+        self,
+        root: Path,
+        operation: EnsureOperation,
+        *,
+        organization: str | None = None,
+    ) -> tuple[Change, ...]:
         assert isinstance(operation, EnsureLine)
+        path = root / operation.path
         _validate_target(path, operation)
         lines = _read_lines(path)
         normalized = _normalized_lines(lines, operation)
         if normalized == lines:
-            return None
+            return ()
         desired_count = sum(line == operation.line for line in lines)
         obsolete = [
             line
@@ -71,15 +78,24 @@ class EnsureLineOperation:
             if line != operation.line and _matches_replacement(line, operation)
         ]
         if obsolete:
-            return f"replace {', '.join(repr(line) for line in dict.fromkeys(obsolete))} with {operation.line!r}"
-        if desired_count == 0:
-            return f"add {operation.line!r}"
-        if desired_count > 1:
-            return f"remove duplicate {operation.line!r} entries"
-        return f"normalize {operation.line!r}"
+            description = f"replace {', '.join(repr(line) for line in dict.fromkeys(obsolete))} with {operation.line!r}"
+        elif desired_count == 0:
+            description = f"add {operation.line!r}"
+        elif desired_count > 1:
+            description = f"remove duplicate {operation.line!r} entries"
+        else:
+            description = f"normalize {operation.line!r}"
+        return (Change(operation.path, description, operation.rationale),)
 
-    def apply(self, path: Path, operation: EnsureOperation) -> None:
+    def apply(
+        self,
+        root: Path,
+        operation: EnsureOperation,
+        *,
+        organization: str | None = None,
+    ) -> None:
         assert isinstance(operation, EnsureLine)
+        path = root / operation.path
         _validate_target(path, operation)
         normalized = _normalized_lines(_read_lines(path), operation)
         if normalized == _read_lines(path):

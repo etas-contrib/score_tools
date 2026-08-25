@@ -44,8 +44,6 @@ _GIT_OVERRIDE_CALL = re.compile(r"git_override\s*\((.*?)\)", re.DOTALL)
 _MODULE_NAME_ARGUMENT = re.compile(r"\bmodule_name\s*=\s*([\"'])([^\"']+)\1")
 _COMMIT_ARGUMENT = re.compile(r"\bcommit\s*=\s*([\"'])([^\"']*)\1")
 _REMOTE_ARGUMENT = re.compile(r"\bremote\s*=\s*([\"'])([^\"']*)\1")
-# The boundaries prevent changing names such as score_process_description twice.
-_LEGACY_BUILD_REFERENCE = re.compile(r"(?<![A-Za-z0-9_])score_process(?![A-Za-z0-9_])")
 
 
 @dataclass(frozen=True)
@@ -129,45 +127,58 @@ class SynchronizeBazelDependenciesOperation:
         )
 
     def describe_changes(
-        self, root: Path, operation: EnsureOperation
+        self,
+        root: Path,
+        operation: EnsureOperation,
+        *,
+        organization: str | None = None,
     ) -> tuple[Change, ...]:
         assert isinstance(operation, SynchronizeBazelDependencies)
         module_path = root / operation.module_file
         # Validation happens while collecting replacements, even when no text changes.
-        replacements = _module_replacements(module_path, operation)
+        replacements, locations = _module_replacements(module_path, operation)
         changes: list[Change] = []
         if replacements:
             changes.append(
                 Change(
                     operation.module_file,
-                    "synchronize SCORE Bazel dependency versions and module names",
+                    "synchronize Bazel dependency versions and module names",
                     operation.rationale,
                 )
             )
+        build_pairs = _build_reference_pairs(operation, locations)
         for path in _build_files(root, operation):
-            if _LEGACY_BUILD_REFERENCE.search(path.read_text(encoding="utf-8")):
+            text = path.read_text(encoding="utf-8")
+            if _replace_build_references(text, build_pairs) != text:
                 changes.append(
                     Change(
                         path.relative_to(root),
-                        "replace 'score_process' with 'score_process_description'",
+                        _build_reference_description(build_pairs),
                         operation.rationale,
                     )
                 )
         return tuple(changes)
 
-    def apply(self, root: Path, operation: EnsureOperation) -> None:
+    def apply(
+        self,
+        root: Path,
+        operation: EnsureOperation,
+        *,
+        organization: str | None = None,
+    ) -> None:
         assert isinstance(operation, SynchronizeBazelDependencies)
         module_path = root / operation.module_file
-        replacements = _module_replacements(module_path, operation)
+        replacements, locations = _module_replacements(module_path, operation)
         if replacements:
             text = module_path.read_text(encoding="utf-8")
             # Apply from the end so earlier offsets stay valid after each edit.
             for start, end, replacement in sorted(replacements, reverse=True):
                 text = text[:start] + replacement + text[end:]
             module_path.write_text(text, encoding="utf-8")
+        build_pairs = _build_reference_pairs(operation, locations)
         for path in _build_files(root, operation):
             text = path.read_text(encoding="utf-8")
-            replaced = _LEGACY_BUILD_REFERENCE.sub("score_process_description", text)
+            replaced = _replace_build_references(text, build_pairs)
             if replaced != text:
                 path.write_text(replaced, encoding="utf-8")
 
@@ -221,7 +232,7 @@ def _dependency_names(dependency: BazelDependencyUpdate) -> tuple[str, ...]:
 
 def _module_replacements(
     path: Path, operation: SynchronizeBazelDependencies
-) -> list[tuple[int, int, str]]:
+) -> tuple[list[tuple[int, int, str]], dict[str, _DependencyLocation]]:
     if not path.is_file():
         raise RepoPolicySyncError(f"{operation.module_file} must exist")
     text = path.read_text(encoding="utf-8")
@@ -252,7 +263,41 @@ def _module_replacements(
                     (location.version_start, location.version_end, dependency.version)
                 )
     replacements.extend(_git_override_replacements(text, operation, locations))
-    return replacements
+    return replacements, locations
+
+
+def _build_reference_pairs(
+    operation: SynchronizeBazelDependencies,
+    locations: dict[str, _DependencyLocation],
+) -> tuple[tuple[str, str], ...]:
+    """Return active legacy-to-current module renames for BUILD files."""
+
+    return tuple(
+        (dependency.module_name, dependency.replacement_name)
+        for dependency in operation.dependencies
+        if dependency.replacement_name is not None
+        and dependency.module_name in locations
+    )
+
+
+def _replace_build_references(text: str, pairs: tuple[tuple[str, str], ...]) -> str:
+    if not pairs:
+        return text
+    replacements = dict(pairs)
+    names = sorted(replacements, key=lambda name: (-len(name), name))
+    pattern = re.compile(
+        r"(?<![A-Za-z0-9_])(?P<module>"
+        + "|".join(re.escape(name) for name in names)
+        + r")(?![A-Za-z0-9_])"
+    )
+    return pattern.sub(lambda match: replacements[match.group("module")], text)
+
+
+def _build_reference_description(pairs: tuple[tuple[str, str], ...]) -> str:
+    if len(pairs) == 1:
+        old_name, new_name = pairs[0]
+        return f"replace {old_name!r} with {new_name!r} in BUILD files"
+    return "replace legacy Bazel module references in BUILD files"
 
 
 def _git_override_replacements(

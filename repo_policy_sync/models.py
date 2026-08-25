@@ -157,14 +157,16 @@ class SynchronizeFile:
 
 @dataclass(frozen=True)
 class MigrateDevcontainerJson:
-    """Replace a SCORE image-based devcontainer config with a Dockerfile."""
+    """Replace an image-based devcontainer config with a Dockerfile."""
 
     sources: tuple[Path, ...]
     destination: Path
     dockerfile: Path
     image: str
+    dockerfile_comment: str | None = None
     rationale: str | None = None
-    copyright_organization: str | None = None
+    copyright_header: str | None = None
+    copyright_header_organization: str | None = None
 
 
 EnsureOperation = (

@@ -299,13 +299,17 @@ declaration. Overrides for absent optional dependencies are skipped.
   destination: .devcontainer/devcontainer.json
   dockerfile: .devcontainer/Dockerfile
   image: ghcr.io/eclipse-score/devcontainer
-  copyright_organization: eclipse-score
+  dockerfile_comment: "# Use Dockerfile to get dependabot version bumps after new image is released"
+  copyright_header_source: copyright-header
+  copyright_header_organization: eclipse-score
 ```
 
 Moves an image-based devcontainer configuration containing exactly one
 `image: image:vX.Y.Z` entry to `destination`, replaces the image entry with a
 `build` entry pointing to the Dockerfile, and removes the source file. Existing
 Dockerfiles or destination files with different contents and unsupported image
-tags are rejected rather than overwritten. When `copyright_organization` is
-set, the standard Eclipse Foundation copyright header is added only when the
-policy is applied to that organization.
+tags are rejected rather than overwritten. When `copyright_header_organization`
+is set, the configured header from `copyright_header_source` is added only when
+the policy is applied to `copyright_header_organization`. The Dockerfile
+comment is configured with `dockerfile_comment` so the operation does not
+assume a particular organization or tooling convention.

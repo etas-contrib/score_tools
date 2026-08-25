@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from ..errors import PolicyError, RepoPolicySyncError
-from ..models import EnsureOperation, ReplaceRegex
+from ..models import Change, EnsureOperation, ReplaceRegex
 from ._validation import (
     expect_keys,
     optional_string,
@@ -50,20 +50,34 @@ class ReplaceRegexOperation:
             optional_string(raw, "rationale", source),
         )
 
-    def describe_change(self, path: Path, operation: EnsureOperation) -> str | None:
+    def describe_changes(
+        self,
+        root: Path,
+        operation: EnsureOperation,
+        *,
+        organization: str | None = None,
+    ) -> tuple[Change, ...]:
         assert isinstance(operation, ReplaceRegex)
+        path = root / operation.path
         _validate_target(path, operation)
         if not path.is_file():
-            return None
+            return ()
         text = path.read_text(encoding="utf-8")
         return (
-            "replace matching text"
+            (Change(operation.path, "replace matching text", operation.rationale),)
             if re.sub(operation.pattern, operation.replacement, text) != text
-            else None
+            else ()
         )
 
-    def apply(self, path: Path, operation: EnsureOperation) -> None:
+    def apply(
+        self,
+        root: Path,
+        operation: EnsureOperation,
+        *,
+        organization: str | None = None,
+    ) -> None:
         assert isinstance(operation, ReplaceRegex)
+        path = root / operation.path
         _validate_target(path, operation)
         if not path.is_file():
             return

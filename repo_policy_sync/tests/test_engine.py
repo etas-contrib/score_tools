@@ -298,7 +298,7 @@ def test_synchronize_bazel_dependencies_adds_and_updates_git_override(
     assert evaluation.changes == (
         Change(
             Path("MODULE.bazel"),
-            "synchronize SCORE Bazel dependency versions and module names",
+            "synchronize Bazel dependency versions and module names",
         ),
     )
     assert module_file.read_text() == (
@@ -319,7 +319,7 @@ def test_synchronize_bazel_dependencies_adds_and_updates_git_override(
     assert apply_policy(tmp_path, policy).changes == (
         Change(
             Path("MODULE.bazel"),
-            "synchronize SCORE Bazel dependency versions and module names",
+            "synchronize Bazel dependency versions and module names",
         ),
     )
     assert "old-commit" not in module_file.read_text()
@@ -334,6 +334,77 @@ def test_synchronize_bazel_dependencies_adds_and_updates_git_override(
         'remote = "https://github.com/eclipse-score/baselibs.git"'
         in module_file.read_text()
     )
+
+
+def test_synchronize_bazel_dependencies_uses_configured_build_rename(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "MODULE.bazel").write_text(
+        'bazel_dep(name = "legacy_module", version = "1.0.0")\n'
+    )
+    build = tmp_path / "BUILD"
+    build.write_text('deps = ["@legacy_module//:api", "legacy_module_description"]\n')
+    policy = Policy(
+        "example",
+        "Example",
+        None,
+        None,
+        (
+            SynchronizeBazelDependencies(
+                Path("MODULE.bazel"),
+                (BazelDependencyUpdate("legacy_module", "2.0.0", "current_module"),),
+            ),
+        ),
+    )
+
+    evaluation = apply_policy(tmp_path, policy)
+
+    assert evaluation.changes == (
+        Change(
+            Path("MODULE.bazel"),
+            "synchronize Bazel dependency versions and module names",
+        ),
+        Change(
+            Path("BUILD"),
+            "replace 'legacy_module' with 'current_module' in BUILD files",
+        ),
+    )
+    assert 'name = "current_module"' in (tmp_path / "MODULE.bazel").read_text()
+    assert 'version = "2.0.0"' in (tmp_path / "MODULE.bazel").read_text()
+    assert "@current_module//:api" in build.read_text()
+    assert "legacy_module_description" in build.read_text()
+
+
+def test_synchronize_bazel_dependencies_does_not_change_unconfigured_build_names(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "MODULE.bazel").write_text(
+        'bazel_dep(name = "score_platform", version = "0.6.3")\n'
+    )
+    build = tmp_path / "BUILD"
+    build.write_text('deps = ["@score_process//:api"]\n')
+    policy = Policy(
+        "example",
+        "Example",
+        None,
+        None,
+        (
+            SynchronizeBazelDependencies(
+                Path("MODULE.bazel"),
+                (BazelDependencyUpdate("score_platform", "0.7.0"),),
+            ),
+        ),
+    )
+
+    evaluation = apply_policy(tmp_path, policy)
+
+    assert evaluation.changes == (
+        Change(
+            Path("MODULE.bazel"),
+            "synchronize Bazel dependency versions and module names",
+        ),
+    )
+    assert build.read_text() == 'deps = ["@score_process//:api"]\n'
 
 
 def test_bazel_dependency_policy_does_not_trigger_on_build_reference_alone(

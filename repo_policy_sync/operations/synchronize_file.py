@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from ..errors import PolicyError, RepoPolicySyncError
-from ..models import EnsureOperation, SynchronizeFile
+from ..models import Change, EnsureOperation, SynchronizeFile
 from ._validation import (
     expect_keys,
     optional_string,
@@ -86,8 +86,15 @@ class SynchronizeFileOperation:
             rationale=optional_string(raw, "rationale", source),
         )
 
-    def describe_change(self, path: Path, operation: EnsureOperation) -> str | None:
+    def describe_changes(
+        self,
+        root: Path,
+        operation: EnsureOperation,
+        *,
+        organization: str | None = None,
+    ) -> tuple[Change, ...]:
         assert isinstance(operation, SynchronizeFile)
+        path = root / operation.path
         _validate_target(path, operation)
         content_changed = not path.is_file() or (
             _desired_contents(path, operation) != path.read_text(encoding="utf-8")
@@ -96,15 +103,24 @@ class SynchronizeFileOperation:
             operation.executable and path.is_file() and not _is_executable(path)
         )
         if content_changed and executable_changed:
-            return "synchronize contents and make executable"
-        if content_changed:
-            return "add file" if not path.exists() else "synchronize contents"
-        if executable_changed:
-            return "make executable"
-        return None
+            description = "synchronize contents and make executable"
+        elif content_changed:
+            description = "add file" if not path.exists() else "synchronize contents"
+        elif executable_changed:
+            description = "make executable"
+        else:
+            return ()
+        return (Change(operation.path, description, operation.rationale),)
 
-    def apply(self, path: Path, operation: EnsureOperation) -> None:
+    def apply(
+        self,
+        root: Path,
+        operation: EnsureOperation,
+        *,
+        organization: str | None = None,
+    ) -> None:
         assert isinstance(operation, SynchronizeFile)
+        path = root / operation.path
         _validate_target(path, operation)
         desired_contents = _desired_contents(path, operation)
         if not path.is_file() or path.read_text(encoding="utf-8") != desired_contents:

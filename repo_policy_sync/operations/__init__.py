@@ -18,14 +18,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Protocol
 
-from ..models import (
-    Change,
-    EnsureBazelDependency,
-    EnsureOperation,
-    MigrateDevcontainerJson,
-    SynchronizeBazelDependencies,
-    SynchronizeDevcontainerVersion,
-)
+from ..models import Change, EnsureOperation
 from .ensure_bazel_dependency import EnsureBazelDependencyOperation
 from .ensure_line import EnsureLineOperation
 from .ensure_minimum_version import EnsureMinimumVersionOperation
@@ -39,12 +32,25 @@ from .synchronize_file import SynchronizeFileOperation
 
 class OperationHandler(Protocol):
     operation_type: str
+    operation_class: type[Any]
 
     def parse(self, raw: dict[str, Any], source: Path) -> EnsureOperation: ...
 
-    def describe_change(self, path: Path, operation: EnsureOperation) -> str | None: ...
+    def describe_changes(
+        self,
+        root: Path,
+        operation: EnsureOperation,
+        *,
+        organization: str | None = None,
+    ) -> tuple[Change, ...]: ...
 
-    def apply(self, path: Path, operation: EnsureOperation) -> None: ...
+    def apply(
+        self,
+        root: Path,
+        operation: EnsureOperation,
+        *,
+        organization: str | None = None,
+    ) -> None: ...
 
 
 _HANDLERS: tuple[OperationHandler, ...] = (
@@ -85,21 +91,8 @@ def describe_changes(
 ) -> tuple[Change, ...]:
     """Describe every path an operation would change."""
 
-    handler = _handler_for(operation)
-    if isinstance(operation, MigrateDevcontainerJson):
-        return handler.describe_changes(root, operation, organization=organization)  # type: ignore[attr-defined]
-    if isinstance(operation, EnsureBazelDependency):
-        return handler.describe_changes(root, operation)  # type: ignore[attr-defined]
-    if isinstance(operation, SynchronizeDevcontainerVersion):
-        return handler.describe_changes(root, operation)  # type: ignore[attr-defined]
-    if isinstance(operation, SynchronizeBazelDependencies):
-        return handler.describe_changes(root, operation)  # type: ignore[attr-defined]
-    path = root / operation.path
-    description = handler.describe_change(path, operation)
-    return (
-        (Change(operation.path, description, operation.rationale),)
-        if description
-        else ()
+    return _handler_for(operation).describe_changes(
+        root, operation, organization=organization
     )
 
 
@@ -108,24 +101,11 @@ def apply(
 ) -> None:
     """Apply one operation from a repository root."""
 
-    handler = _handler_for(operation)
-    if isinstance(operation, MigrateDevcontainerJson):
-        handler.apply(root, operation, organization=organization)  # type: ignore[attr-defined]
-        return
-    if isinstance(operation, EnsureBazelDependency):
-        handler.apply(root, operation)  # type: ignore[attr-defined]
-        return
-    if isinstance(operation, SynchronizeDevcontainerVersion):
-        handler.apply(root, operation)
-        return
-    if isinstance(operation, SynchronizeBazelDependencies):
-        handler.apply(root, operation)  # type: ignore[attr-defined]
-        return
-    handler.apply(root / operation.path, operation)
+    _handler_for(operation).apply(root, operation, organization=organization)
 
 
 def _handler_for(operation: EnsureOperation) -> OperationHandler:
     for handler in _HANDLERS:
-        if handler.operation_class is type(operation):  # type: ignore[attr-defined]
+        if handler.operation_class is type(operation):
             return handler
     raise TypeError(f"no operation handler registered for {type(operation).__name__}")

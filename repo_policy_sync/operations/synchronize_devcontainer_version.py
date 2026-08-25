@@ -69,7 +69,11 @@ class SynchronizeDevcontainerVersionOperation:
         )
 
     def describe_changes(
-        self, root: Path, operation: EnsureOperation
+        self,
+        root: Path,
+        operation: EnsureOperation,
+        *,
+        organization: str | None = None,
     ) -> tuple[Change, ...]:
         assert isinstance(operation, SynchronizeDevcontainerVersion)
         docker, module = _locations(root, operation)
@@ -86,7 +90,13 @@ class SynchronizeDevcontainerVersionOperation:
             ),
         )
 
-    def apply(self, root: Path, operation: EnsureOperation) -> None:
+    def apply(
+        self,
+        root: Path,
+        operation: EnsureOperation,
+        *,
+        organization: str | None = None,
+    ) -> None:
         assert isinstance(operation, SynchronizeDevcontainerVersion)
         docker, module = _locations(root, operation)
         if docker.version == module.version:

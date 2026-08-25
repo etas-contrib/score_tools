@@ -28,5 +28,7 @@ ensure:
     destination: .devcontainer/devcontainer.json
     dockerfile: .devcontainer/Dockerfile
     image: ghcr.io/eclipse-score/devcontainer
-    copyright_organization: eclipse-score
+    dockerfile_comment: "# Use Dockerfile to get dependabot version bumps after new image is released"
+    copyright_header_source: copyright-header
+    copyright_header_organization: eclipse-score
     rationale: Dependabot can update the SCORE development image in Dockerfiles.

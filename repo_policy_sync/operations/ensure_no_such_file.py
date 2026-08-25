@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from ..errors import RepoPolicySyncError
-from ..models import EnsureNoSuchFile, EnsureOperation
+from ..models import Change, EnsureNoSuchFile, EnsureOperation
 from ._validation import (
     expect_keys,
     optional_string,
@@ -37,16 +37,34 @@ class EnsureNoSuchFileOperation:
             optional_string(raw, "rationale", source),
         )
 
-    def describe_change(self, path: Path, operation: EnsureOperation) -> str | None:
+    def describe_changes(
+        self,
+        root: Path,
+        operation: EnsureOperation,
+        *,
+        organization: str | None = None,
+    ) -> tuple[Change, ...]:
+        assert isinstance(operation, EnsureNoSuchFile)
+        path = root / operation.path
         if path.is_dir():
-            assert isinstance(operation, EnsureNoSuchFile)
             raise RepoPolicySyncError(f"refusing to remove directory {operation.path}")
-        return "remove file" if path.exists() else None
+        return (
+            (Change(operation.path, "remove file", operation.rationale),)
+            if path.exists()
+            else ()
+        )
 
-    def apply(self, path: Path, operation: EnsureOperation) -> None:
+    def apply(
+        self,
+        root: Path,
+        operation: EnsureOperation,
+        *,
+        organization: str | None = None,
+    ) -> None:
+        assert isinstance(operation, EnsureNoSuchFile)
+        path = root / operation.path
         if not path.exists():
             return
         if path.is_dir():
-            assert isinstance(operation, EnsureNoSuchFile)
             raise RepoPolicySyncError(f"refusing to remove directory {operation.path}")
         path.unlink()

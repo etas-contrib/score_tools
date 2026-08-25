@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from ..errors import PolicyError, RepoPolicySyncError
-from ..models import EnsureMinimumVersion, EnsureOperation
+from ..models import Change, EnsureMinimumVersion, EnsureOperation
 from ._validation import (
     expect_keys,
     optional_string,
@@ -46,15 +46,35 @@ class EnsureMinimumVersionOperation:
             optional_string(raw, "rationale", source),
         )
 
-    def describe_change(self, path: Path, operation: EnsureOperation) -> str | None:
+    def describe_changes(
+        self,
+        root: Path,
+        operation: EnsureOperation,
+        *,
+        organization: str | None = None,
+    ) -> tuple[Change, ...]:
         assert isinstance(operation, EnsureMinimumVersion)
+        path = root / operation.path
         current_version = _read_version(path, operation)
         if current_version is None or current_version >= _required_version(operation):
-            return None
-        return f"upgrade from {path.read_text(encoding='utf-8').strip()!r} to {operation.minimum_version!r}"
+            return ()
+        return (
+            Change(
+                operation.path,
+                f"upgrade from {path.read_text(encoding='utf-8').strip()!r} to {operation.minimum_version!r}",
+                operation.rationale,
+            ),
+        )
 
-    def apply(self, path: Path, operation: EnsureOperation) -> None:
+    def apply(
+        self,
+        root: Path,
+        operation: EnsureOperation,
+        *,
+        organization: str | None = None,
+    ) -> None:
         assert isinstance(operation, EnsureMinimumVersion)
+        path = root / operation.path
         current_version = _read_version(path, operation)
         if current_version is None or current_version >= _required_version(operation):
             return
