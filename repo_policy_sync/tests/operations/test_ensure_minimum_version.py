@@ -15,10 +15,10 @@ from pathlib import Path
 
 import pytest
 
-from repo_policy_sync.engine import apply_policy, evaluate_policy
-from repo_policy_sync.errors import RepoPolicySyncError
-from repo_policy_sync.models import Change, EnsureMinimumVersion, Policy
-from repo_policy_sync.policy import BUNDLED_POLICY_DIRECTORY, load_policy
+from repo_policy_sync.src.engine import apply_policy, evaluate_policy
+from repo_policy_sync.src.errors import RepoPolicySyncError
+from repo_policy_sync.src.models import Change, EnsureMinimumVersion, Policy
+from repo_policy_sync.src.policy import BUNDLED_POLICY_DIRECTORY, load_policy
 
 
 def test_ensure_minimum_version_upgrades_only_older_versions(fake_repo: Path) -> None:

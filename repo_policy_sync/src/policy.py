@@ -39,7 +39,7 @@ from .operations._validation import safe_relative_path
 # Policy definitions belong to the consuming repository. Keep the default
 # relative to the caller's working directory so `./policies` is enough.
 DEFAULT_POLICY_DIRECTORY = Path("policies")
-BUNDLED_POLICY_DIRECTORY = Path(__file__).with_name("policies")
+BUNDLED_POLICY_DIRECTORY = Path(__file__).resolve().parents[1] / "policies"
 
 
 def load_policies(paths: tuple[Path, ...] | None = None) -> tuple[Policy, ...]:

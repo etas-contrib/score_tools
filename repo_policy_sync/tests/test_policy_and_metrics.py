@@ -15,8 +15,8 @@ from pathlib import Path
 
 import pytest
 
-from repo_policy_sync.errors import PolicyError
-from repo_policy_sync.policy import (
+from repo_policy_sync.src.errors import PolicyError
+from repo_policy_sync.src.policy import (
     BUNDLED_POLICY_DIRECTORY,
     discover_policy_paths,
     load_policy,

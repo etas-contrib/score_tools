@@ -16,9 +16,9 @@ import subprocess
 
 import pytest
 
-from repo_policy_sync.engine import apply_policy, evaluate_policy
-from repo_policy_sync.errors import RepoPolicySyncError
-from repo_policy_sync.models import (
+from repo_policy_sync.src.engine import apply_policy, evaluate_policy
+from repo_policy_sync.src.errors import RepoPolicySyncError
+from repo_policy_sync.src.models import (
     AfterApplyCommand,
     BazelDependencyCondition,
     BazelCondition,
@@ -137,7 +137,7 @@ def test_after_apply_regenerates_existing_conditional_file(
         assert env["GIT_CONFIG_NOSYSTEM"] == "1"
         assert "GH_TOKEN" not in env
 
-    monkeypatch.setattr("repo_policy_sync.engine.subprocess.run", run)
+    monkeypatch.setattr("repo_policy_sync.src.engine.subprocess.run", run)
 
     evaluation = evaluate_policy(fake_repo, policy)
     applied = apply_policy(fake_repo, policy)
@@ -177,7 +177,7 @@ def test_force_after_apply_runs_for_an_already_compliant_policy(
         assert env["GIT_CONFIG_NOSYSTEM"] == "1"
         lock_file.write_text("new lock\n")
 
-    monkeypatch.setattr("repo_policy_sync.engine.subprocess.run", run)
+    monkeypatch.setattr("repo_policy_sync.src.engine.subprocess.run", run)
 
     applied = apply_policy(fake_repo, policy, force_after_apply=True)
 
@@ -210,7 +210,7 @@ def test_after_apply_failure_redacts_credentials(fake_repo: Path, monkeypatch) -
             output="password=another-secret\n",
         )
 
-    monkeypatch.setattr("repo_policy_sync.engine.subprocess.run", run)
+    monkeypatch.setattr("repo_policy_sync.src.engine.subprocess.run", run)
 
     with pytest.raises(RepoPolicySyncError) as error:
         apply_policy(fake_repo, policy)
@@ -243,7 +243,7 @@ def test_after_apply_failure_without_output_has_a_fallback_message(
     def run(*_, **__):
         raise subprocess.CalledProcessError(1, ["bazel", "mod", "deps"])
 
-    monkeypatch.setattr("repo_policy_sync.engine.subprocess.run", run)
+    monkeypatch.setattr("repo_policy_sync.src.engine.subprocess.run", run)
 
     with pytest.raises(RepoPolicySyncError, match=r"command failed \(exit status 1\)"):
         apply_policy(fake_repo, policy)

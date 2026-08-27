@@ -19,15 +19,15 @@ from pathlib import Path
 
 import pytest
 
-from repo_policy_sync import runner
-from repo_policy_sync.errors import RepoPolicySyncError
-from repo_policy_sync.github import (
+from repo_policy_sync.src import runner
+from repo_policy_sync.src.errors import RepoPolicySyncError
+from repo_policy_sync.src.github import (
     CommitResult,
     PolicyPullRequestStatus,
     PullRequest,
     _pull_request_body,
 )
-from repo_policy_sync.models import (
+from repo_policy_sync.src.models import (
     BazelCondition,
     EnsureLine,
     RemoveFile,
@@ -35,7 +35,7 @@ from repo_policy_sync.models import (
     Policy,
     Repository,
 )
-from repo_policy_sync.runner import _run_repository, run_policies
+from repo_policy_sync.src.runner import _run_repository, run_policies
 
 
 class FakeRepositoryClient:

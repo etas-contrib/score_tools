@@ -15,9 +15,9 @@ from pathlib import Path
 
 import pytest
 
-from repo_policy_sync.engine import apply_policy, evaluate_policy
-from repo_policy_sync.errors import RepoPolicySyncError
-from repo_policy_sync.models import Change, Policy, ReplaceRegex
+from repo_policy_sync.src.engine import apply_policy, evaluate_policy
+from repo_policy_sync.src.errors import RepoPolicySyncError
+from repo_policy_sync.src.models import Change, Policy, ReplaceRegex
 
 
 def test_replace_regex_applies_and_is_idempotent(fake_repo: Path) -> None:

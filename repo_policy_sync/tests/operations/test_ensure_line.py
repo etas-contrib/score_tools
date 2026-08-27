@@ -15,9 +15,9 @@ from pathlib import Path
 
 import pytest
 
-from repo_policy_sync.engine import apply_policy, evaluate_policy
-from repo_policy_sync.errors import RepoPolicySyncError
-from repo_policy_sync.models import Change, EnsureLine, Policy
+from repo_policy_sync.src.engine import apply_policy, evaluate_policy
+from repo_policy_sync.src.errors import RepoPolicySyncError
+from repo_policy_sync.src.models import Change, EnsureLine, Policy
 
 
 def test_ensure_line_replaces_complete_line_glob_matches(fake_repo: Path) -> None:

@@ -15,9 +15,9 @@ from pathlib import Path
 
 import pytest
 
-from repo_policy_sync.engine import apply_policy, evaluate_policy
-from repo_policy_sync.errors import RepoPolicySyncError
-from repo_policy_sync.models import Change, Policy, RemoveFile
+from repo_policy_sync.src.engine import apply_policy, evaluate_policy
+from repo_policy_sync.src.errors import RepoPolicySyncError
+from repo_policy_sync.src.models import Change, Policy, RemoveFile
 
 
 def test_remove_file_removes_an_existing_file(fake_repo: Path) -> None:

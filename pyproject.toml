@@ -13,7 +13,7 @@ dependencies = [
 
 [project.scripts]
 score-copyright = "cr_checker.tool.cr_checker:main"
-score-repo-policy-sync = "repo_policy_sync.cli:main"
+score-repo-policy-sync = "repo_policy_sync.src.cli:main"
 
 [dependency-groups]
 dev = [

@@ -18,15 +18,15 @@ from pathlib import Path
 
 import pytest
 
-from repo_policy_sync.github import (
+from repo_policy_sync.src.github import (
     CommitResult,
     GitHubCli,
     PullRequest,
     _pull_request_body,
     policy_branches,
 )
-from repo_policy_sync.errors import CommandError, redact_sensitive_text
-from repo_policy_sync.models import (
+from repo_policy_sync.src.errors import CommandError, redact_sensitive_text
+from repo_policy_sync.src.models import (
     BazelCondition,
     Change,
     EnsureLine,
@@ -34,7 +34,7 @@ from repo_policy_sync.models import (
     Policy,
     Repository,
 )
-from repo_policy_sync.policy import BUNDLED_POLICY_DIRECTORY, load_policy
+from repo_policy_sync.src.policy import BUNDLED_POLICY_DIRECTORY, load_policy
 
 
 def test_commit_stages_deleted_policy_files(monkeypatch, tmp_path: Path) -> None:
@@ -474,7 +474,7 @@ def test_gh_command_failures_are_actionable(monkeypatch) -> None:
             1, ["gh", "auth", "status"], stderr="authentication failed\n"
         )
 
-    monkeypatch.setattr("repo_policy_sync.github.subprocess.run", run)
+    monkeypatch.setattr("repo_policy_sync.src.github.subprocess.run", run)
 
     with pytest.raises(CommandError, match="gh auth status: authentication failed"):
         GitHubCli._run(["gh", "auth", "status"])
@@ -490,7 +490,7 @@ def test_gh_command_failures_redact_credentials(monkeypatch) -> None:
             stderr=f"Authorization: Bearer {token}\n",
         )
 
-    monkeypatch.setattr("repo_policy_sync.github.subprocess.run", run)
+    monkeypatch.setattr("repo_policy_sync.src.github.subprocess.run", run)
 
     with pytest.raises(CommandError) as error:
         GitHubCli._run(["gh", "auth", "status"])
@@ -520,7 +520,7 @@ def test_missing_gh_command_is_actionable(monkeypatch) -> None:
     def run(*_: object, **__: object) -> None:
         raise FileNotFoundError
 
-    monkeypatch.setattr("repo_policy_sync.github.subprocess.run", run)
+    monkeypatch.setattr("repo_policy_sync.src.github.subprocess.run", run)
 
     with pytest.raises(CommandError, match="required command is unavailable: gh"):
         GitHubCli._run(["gh", "auth", "status"])

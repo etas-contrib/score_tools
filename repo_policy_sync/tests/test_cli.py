@@ -15,9 +15,9 @@ from pathlib import Path
 
 import pytest
 
-from repo_policy_sync import cli
-from repo_policy_sync.policy import BUNDLED_POLICY_DIRECTORY
-from repo_policy_sync.runner import RunReport, RunSummary
+from repo_policy_sync.src import cli
+from repo_policy_sync.src.policy import BUNDLED_POLICY_DIRECTORY
+from repo_policy_sync.src.runner import RunReport, RunSummary
 
 
 def _empty_report() -> RunReport:

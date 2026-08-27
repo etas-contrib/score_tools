@@ -13,9 +13,9 @@
 
 from pathlib import Path
 
-from repo_policy_sync.models import Change
-from repo_policy_sync.reporting import render_json, render_markdown, render_table
-from repo_policy_sync.runner import RepositoryOutcome, RunReport, RunSummary
+from repo_policy_sync.src.models import Change
+from repo_policy_sync.src.reporting import render_json, render_markdown, render_table
+from repo_policy_sync.src.runner import RepositoryOutcome, RunReport, RunSummary
 
 
 def _report() -> RunReport:

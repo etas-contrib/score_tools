@@ -15,8 +15,8 @@ from pathlib import Path
 
 import pytest
 
-from repo_policy_sync.config import load_config
-from repo_policy_sync.errors import RepoPolicySyncError
+from repo_policy_sync.src.config import load_config
+from repo_policy_sync.src.errors import RepoPolicySyncError
 
 
 def test_load_config_resolves_policy_directories_relative_to_config(

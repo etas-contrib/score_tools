@@ -13,7 +13,7 @@
 
 from pathlib import Path
 
-from repo_policy_sync.cache import default_checkout_cache_directory
+from repo_policy_sync.src.cache import default_checkout_cache_directory
 
 
 def test_default_checkout_cache_uses_generic_xdg_location(

@@ -16,8 +16,8 @@
 from pathlib import Path
 from shutil import copytree
 
-from repo_policy_sync.engine import apply_policy
-from repo_policy_sync.policy import BUNDLED_POLICY_DIRECTORY, load_policy
+from repo_policy_sync.src.engine import apply_policy
+from repo_policy_sync.src.policy import BUNDLED_POLICY_DIRECTORY, load_policy
 
 
 def test_policy_examples_apply_as_documented(tmp_path: Path) -> None:
