@@ -1,0 +1,5 @@
+formatter:
+  # Allow single empty lines
+  retain_line_breaks_single: true
+  # Keep long prose readable in folded scalars like workflow messages.
+  scan_folded_as_literal: true
