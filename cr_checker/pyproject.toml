@@ -1,0 +1,19 @@
+[project]
+name = "cr-checker"
+version = "0.1.0"
+description = "Copyright header checker for S-CORE repositories"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+score-copyright = "cr_checker.tool.cr_checker:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+only-include = ["tool"]
+sources = { "" = "cr_checker" }
+dev-mode-dirs = [".."]
