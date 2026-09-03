@@ -51,6 +51,9 @@ jobs:
             echo "SCORE_BOT_CLASSIC_PAT is required to apply policies across repositories." >&2
             exit 1
           fi
+      - name: Configure Git authentication for apply mode
+        if: env.MODE == 'apply'
+        run: gh auth setup-git --hostname github.com
       - name: Run policy sync
         id: sync
         run: >-
