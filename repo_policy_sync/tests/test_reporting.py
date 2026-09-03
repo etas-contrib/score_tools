@@ -78,9 +78,7 @@ def test_render_table_describes_skips_without_a_usable_checkout() -> None:
             evaluations=0,
             drifted=0,
         ),
-        outcomes=(
-            RepositoryOutcome("empty", "example-policy", "unknown", "skipped"),
-        ),
+        outcomes=(RepositoryOutcome("empty", "example-policy", "unknown", "skipped"),),
     )
 
     output = render_table(report)

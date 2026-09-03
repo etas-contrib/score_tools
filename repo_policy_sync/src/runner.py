@@ -215,7 +215,8 @@ def run_policies(
         outcome.repository for outcome in sync_report.outcomes
     )
     skipped_repositories = {
-        outcome.repository.name for outcome in sync_report.outcomes
+        outcome.repository.name
+        for outcome in sync_report.outcomes
         if outcome.empty or outcome.repository.default_branch is None
     }
     sync_failures = {
