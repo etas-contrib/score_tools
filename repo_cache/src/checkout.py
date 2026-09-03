@@ -20,7 +20,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from .command import run_command
-from .errors import CommandError
+from .errors import CommandError, EmptyRepositoryError
 
 _DEFAULT_BRANCH_REF = "refs/repo-cache/default"
 
@@ -30,9 +30,25 @@ def sync_default_branch(*, repository: str, branch: str, destination: Path) -> N
 
     if (destination / ".git").is_dir():
         _verify_cached_remote(repository=repository, checkout=destination)
-        run_command(
-            ["git", "-C", str(destination), "fetch", "--depth", "1", "origin", branch]
-        )
+        try:
+            run_command(
+                [
+                    "git",
+                    "-C",
+                    str(destination),
+                    "fetch",
+                    "--depth",
+                    "1",
+                    "origin",
+                    branch,
+                ]
+            )
+        except CommandError as exc:
+            if _repository_is_empty(repository):
+                raise EmptyRepositoryError(
+                    f"repository has no Git references: {repository}"
+                ) from exc
+            raise
         run_command(
             [
                 "git",
@@ -54,6 +70,8 @@ def sync_default_branch(*, repository: str, branch: str, destination: Path) -> N
         raise CommandError(
             f"checkout cache path exists but is not a Git repository: {destination}"
         )
+    if _repository_is_empty(repository):
+        raise EmptyRepositoryError(f"repository has no Git references: {repository}")
     destination.parent.mkdir(parents=True, exist_ok=True)
     run_command(
         [
@@ -72,6 +90,31 @@ def sync_default_branch(*, repository: str, branch: str, destination: Path) -> N
     run_command(
         ["git", "-C", str(destination), "update-ref", _DEFAULT_BRANCH_REF, "HEAD"]
     )
+
+
+def _repository_is_empty(repository: str) -> bool:
+    """Check for Git refs without replacing the original sync error."""
+
+    try:
+        output = run_command(
+            [
+                "gh",
+                "api",
+                f"/repos/{repository}/git/refs?per_page=1",
+                "--jq",
+                "length",
+            ]
+        )
+    except CommandError as exc:
+        # GitHub reports an empty repository as HTTP 409. Other probe errors
+        # should leave the original clone/fetch error as the useful diagnosis.
+        return "Git Repository is empty." in str(exc)
+    try:
+        return int(output.strip()) == 0
+    except ValueError as exc:
+        raise CommandError(
+            f"gh returned an invalid Git reference count for {repository}"
+        ) from exc
 
 
 def _verify_cached_remote(*, repository: str, checkout: Path) -> None:

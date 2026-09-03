@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .checkout import sync_default_branch
-from .errors import RepoCacheError, redact_sensitive_text
+from .errors import EmptyRepositoryError, RepoCacheError, redact_sensitive_text
 from .github import ensure_authenticated, list_repositories
 from .models import Repository
 
@@ -37,6 +37,7 @@ class SyncOutcome:
     repository: Repository
     checkout: Path
     error: str | None = None
+    empty: bool = False
 
 
 @dataclass(frozen=True)
@@ -50,6 +51,10 @@ class SyncReport:
     @property
     def failures(self) -> tuple[SyncOutcome, ...]:
         return tuple(outcome for outcome in self.outcomes if outcome.error)
+
+    @property
+    def empty_repositories(self) -> tuple[SyncOutcome, ...]:
+        return tuple(outcome for outcome in self.outcomes if outcome.empty)
 
 
 def sync_org(
@@ -66,6 +71,8 @@ def sync_org(
     Raises RepoCacheError for an authentication failure or an unknown `repos`
     name. Per-repository sync failures are captured in `SyncOutcome.error`
     rather than raised, so one broken repository does not abort the rest.
+    Empty repositories are reported in `SyncReport.empty_repositories` instead
+    of being treated as failures.
     """
 
     if workers < 1:
@@ -106,7 +113,9 @@ def sync_org(
     )
 
     outcomes: dict[str, SyncOutcome] = {
-        repository.name: SyncOutcome(repository, cache_dir / org / repository.name)
+        repository.name: SyncOutcome(
+            repository, cache_dir / org / repository.name, empty=True
+        )
         for repository in selected_repositories
         if repository.default_branch is None
     }
@@ -133,6 +142,11 @@ def sync_org(
                 checkout = cache_dir / org / repository.name
                 try:
                     future.result()
+                except EmptyRepositoryError:
+                    outcomes[repository.name] = SyncOutcome(
+                        repository, checkout, empty=True
+                    )
+                    status = "empty"
                 except (RepoCacheError, OSError) as exc:
                     error = redact_sensitive_text(str(exc) or exc.__class__.__name__)
                     outcomes[repository.name] = SyncOutcome(repository, checkout, error)

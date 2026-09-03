@@ -96,6 +96,27 @@ def test_sync_succeeds_with_zero_exit_code(monkeypatch, tmp_path: Path) -> None:
     assert exit_code == 0
 
 
+def test_sync_reports_empty_repositories_without_a_failure(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    repository = Repository("empty", "main")
+    report = SyncReport(
+        org="acme",
+        cache_dir=tmp_path,
+        outcomes=(SyncOutcome(repository, tmp_path / "acme" / "empty", empty=True),),
+    )
+    monkeypatch.setattr(cli_module, "sync_org", lambda **_: report)
+
+    exit_code = cli_module.main(
+        ["sync", "--org", "acme", "--cache-dir", str(tmp_path), "--quiet"]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert "empty: empty" in captured.err
+    assert "Synchronized 0/1 checkout(s)" in captured.out
+
+
 def test_main_reports_repo_cache_errors_without_a_traceback(
     monkeypatch, capsys
 ) -> None:

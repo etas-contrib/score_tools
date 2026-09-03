@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 
 from repo_cache.src import sync as sync_module
-from repo_cache.src.errors import RepoCacheError
+from repo_cache.src.errors import EmptyRepositoryError, RepoCacheError
 from repo_cache.src.models import Repository
 from repo_cache.src.sync import SyncOutcome, sync_org
 
@@ -90,8 +90,30 @@ def test_sync_org_skips_repositories_without_a_default_branch(
     report = sync_org(org="acme", cache_dir=tmp_path)
 
     assert report.outcomes == (
-        SyncOutcome(repositories[0], tmp_path / "acme" / "empty", None),
+        SyncOutcome(repositories[0], tmp_path / "acme" / "empty", empty=True),
     )
+    assert report.failures == ()
+    assert report.empty_repositories == report.outcomes
+
+
+def test_sync_org_reports_empty_checkout_without_marking_it_as_a_failure(
+    monkeypatch, tmp_path: Path
+) -> None:
+    repositories = (Repository("empty", "main"), Repository("fine", "main"))
+    _stub_listing(monkeypatch, repositories)
+
+    def fake_sync(*, repository: str, branch: str, destination: Path) -> None:
+        if repository.endswith("empty"):
+            raise EmptyRepositoryError("repository has no Git references")
+
+    monkeypatch.setattr(sync_module, "sync_default_branch", fake_sync)
+
+    report = sync_org(org="acme", cache_dir=tmp_path)
+
+    assert report.failures == ()
+    assert [outcome.repository.name for outcome in report.empty_repositories] == [
+        "empty"
+    ]
 
 
 def test_sync_org_records_a_sync_failure_without_aborting_others(

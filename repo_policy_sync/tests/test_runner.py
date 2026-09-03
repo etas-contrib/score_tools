@@ -64,6 +64,7 @@ def _install_fake_sync(
     client: FakeRepositoryClient,
     *,
     failures: dict[str, str] | None = None,
+    empty_repositories: set[str] | None = None,
 ) -> None:
     """Replace runner.sync_org/restore_synced_default_branch with in-memory fakes.
 
@@ -72,6 +73,7 @@ def _install_fake_sync(
     """
 
     failures = failures or {}
+    empty_repositories = empty_repositories or set()
 
     def fake_sync_org(
         *,
@@ -115,6 +117,11 @@ def _install_fake_sync(
             checkout = cache_dir / org / repository.name
             if repository.default_branch is None:
                 outcomes[repository.name] = SyncOutcome(repository, checkout)
+                continue
+            if repository.name in empty_repositories:
+                outcomes[repository.name] = SyncOutcome(
+                    repository, checkout, empty=True
+                )
                 continue
             client.cloned.append(f"{org}/{repository.name}")
             error = failures.get(repository.name)
@@ -664,6 +671,38 @@ def test_runner_counts_a_sync_failure_once_per_repository(
         "sync-error",
         "sync-error",
     ]
+
+
+def test_runner_skips_an_empty_repository_without_a_checkout(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "repository"
+    source.mkdir()
+    policy = Policy(
+        "example",
+        "Example",
+        None,
+        None,
+        (EnsureLine(Path("required.txt"), "yes", ()),),
+    )
+    client = FakeRepositoryClient(source, (Repository("empty", "main"),))
+    _install_fake_sync(monkeypatch, client, empty_repositories={"empty"})
+
+    report = run_policies(
+        client=client,
+        org="eclipse-score",
+        policies=(policy,),
+        repository_names=(),
+        checkout_cache_directory=tmp_path / "cache",
+        apply=False,
+        sync_workers=1,
+        policy_workers=1,
+    )
+
+    assert report.summary.synchronized == 0
+    assert report.summary.skipped == 1
+    assert report.summary.evaluations == 0
+    assert report.outcomes[0].status == "skipped"
 
 
 def test_runner_reports_checkout_os_errors_without_a_traceback(

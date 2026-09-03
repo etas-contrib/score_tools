@@ -41,7 +41,9 @@ score-repo-cache sync --org eclipse-score --repo score --repo score_tools
 `sync` clones each selected repository's default branch into
 `~/.cache/repo-cache/<org>/<name>` (override with `--cache-dir`), or fetches
 and resets an existing checkout back to a clean state if it was already
-cloned there.
+cloned there. Repositories with no Git references are reported as empty and
+do not make the command fail; checkout, authentication, and other operational
+errors remain failures.
 
 ## Library
 
@@ -51,6 +53,8 @@ from repo_cache import default_cache_directory, sync_org
 report = sync_org(org="eclipse-score", cache_dir=default_cache_directory())
 for outcome in report.failures:
     print(outcome.repository.name, outcome.error)
+for outcome in report.empty_repositories:
+    print(outcome.repository.name, "is empty")
 ```
 
 ## Bazel

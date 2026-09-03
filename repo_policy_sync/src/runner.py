@@ -214,15 +214,16 @@ def run_policies(
     selected_repositories = tuple(
         outcome.repository for outcome in sync_report.outcomes
     )
+    skipped_repositories = {
+        outcome.repository.name for outcome in sync_report.outcomes
+        if outcome.empty or outcome.repository.default_branch is None
+    }
     sync_failures = {
         outcome.repository.name: outcome.error for outcome in sync_report.failures
     }
 
-    synchronized = len(selected_repositories) - len(sync_failures)
-    skipped = sum(
-        repository.default_branch is None for repository in selected_repositories
-    )
-    synchronized -= skipped
+    skipped = len(skipped_repositories)
+    synchronized = len(selected_repositories) - len(sync_failures) - skipped
     evaluations = compliant = drifted = not_applicable = evaluation_failures = 0
     pull_requests_created = pull_requests_updated = pull_requests_open = (
         pull_requests_recreated
@@ -239,6 +240,7 @@ def run_policies(
             recreate=recreate,
             allow_dirty_pr=allow_dirty_pr,
             sync_failures=sync_failures,
+            skipped_repositories=skipped_repositories,
             workers=policy_workers,
             progress=report_progress,
             include_pull_request_status=include_pull_request_status,
@@ -311,6 +313,7 @@ def _run_policy_across_repositories(
     recreate: bool,
     allow_dirty_pr: bool,
     sync_failures: dict[str, str],
+    skipped_repositories: set[str],
     workers: int,
     progress: Callable[[str], None],
     include_pull_request_status: bool,
@@ -326,7 +329,7 @@ def _run_policy_across_repositories(
         max_workers=workers, thread_name_prefix=TOOL_SLUG
     ) as executor:
         for index, repository in enumerate(repositories):
-            if repository.default_branch is None:
+            if repository.name in skipped_repositories:
                 outcomes[index] = RepositoryOutcome(
                     repository.name, policy.id, "unknown", "skipped"
                 )

@@ -137,9 +137,14 @@ def _run_sync(args: argparse.Namespace) -> int:
     )
     for outcome in report.failures:
         print(f"error: {outcome.repository.name}: {outcome.error}", file=sys.stderr)
-    synced = len(report.outcomes) - len(report.failures)
+    for outcome in report.empty_repositories:
+        print(f"empty: {outcome.repository.name}", file=sys.stderr)
+    synced = (
+        len(report.outcomes) - len(report.failures) - len(report.empty_repositories)
+    )
     print(
-        f"Synchronized {synced}/{len(report.outcomes)} checkout(s) at {cache_dir / args.org}"
+        f"Synchronized {synced}/{len(report.outcomes)} checkout(s) at "
+        f"{cache_dir / args.org} ({len(report.empty_repositories)} empty)"
     )
     return 2 if report.failures else 0
 

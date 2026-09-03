@@ -17,6 +17,7 @@ from .src.cache import default_cache_directory as default_cache_directory
 from .src.checkout import restore_synced_default_branch as restore_synced_default_branch
 from .src.checkout import sync_default_branch as sync_default_branch
 from .src.errors import CommandError as CommandError
+from .src.errors import EmptyRepositoryError as EmptyRepositoryError
 from .src.errors import RepoCacheError as RepoCacheError
 from .src.github import ensure_authenticated as ensure_authenticated
 from .src.github import list_repositories as list_repositories

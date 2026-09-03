@@ -57,3 +57,7 @@ class RepoCacheError(RuntimeError):
 
 class CommandError(RepoCacheError):
     """A required `gh` or `git` command failed or was unavailable."""
+
+
+class EmptyRepositoryError(RepoCacheError):
+    """A repository has no Git references and therefore no checkout to sync."""
