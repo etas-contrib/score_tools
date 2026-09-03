@@ -142,6 +142,46 @@ def test_sync_default_branch_preserves_a_non_empty_repository_failure(
         )
 
 
+@pytest.mark.parametrize(
+    ("refs_count", "expected_exception", "message"),
+    [
+        ("0\n", EmptyRepositoryError, "has no Git references"),
+        ("1\n", CommandError, "fetch failed"),
+    ],
+)
+def test_sync_default_branch_handles_a_cached_fetch_failure(
+    monkeypatch,
+    tmp_path: Path,
+    refs_count: str,
+    expected_exception: type[Exception],
+    message: str,
+) -> None:
+    destination = tmp_path / "checkout"
+    (destination / ".git").mkdir(parents=True)
+    commands: list[list[str]] = []
+
+    def record(command: list[str]) -> str:
+        commands.append(command)
+        if command[:4] == ["gh", "repo", "view", "owner/repository"]:
+            return "https://github.com/owner/repository\n"
+        if command[-3:] == ["remote", "get-url", "origin"]:
+            return "git@github.com:owner/repository.git\n"
+        if command[3:4] == ["fetch"]:
+            raise CommandError("git fetch failed")
+        if command[:2] == ["gh", "api"]:
+            return refs_count
+        return ""
+
+    monkeypatch.setattr("repo_cache.src.checkout.run_command", record)
+
+    with pytest.raises(expected_exception, match=message):
+        sync_default_branch(
+            repository="owner/repository", branch="main", destination=destination
+        )
+
+    assert commands[-1][:2] == ["gh", "api"]
+
+
 def test_restore_synced_default_branch_never_fetches(
     monkeypatch, tmp_path: Path
 ) -> None:

@@ -12,6 +12,7 @@
 # *******************************************************************************
 
 import json
+from dataclasses import replace
 from pathlib import Path
 
 from repo_policy_sync.src.models import Change, Policy
@@ -66,6 +67,25 @@ def test_render_table_includes_each_outcome_and_summary() -> None:
     assert "100.0%" in output
     assert "-------|" not in output
     assert "When" not in output
+
+
+def test_render_table_describes_skips_without_a_usable_checkout() -> None:
+    report = RunReport(
+        summary=replace(
+            _report().summary,
+            synchronized=0,
+            skipped=1,
+            evaluations=0,
+            drifted=0,
+        ),
+        outcomes=(
+            RepositoryOutcome("empty", "example-policy", "unknown", "skipped"),
+        ),
+    )
+
+    output = render_table(report)
+
+    assert "skipped (no usable checkout)" in output
 
 
 def test_render_table_groups_failure_causes() -> None:

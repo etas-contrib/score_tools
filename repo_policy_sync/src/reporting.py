@@ -281,7 +281,7 @@ def _summary_lines(report: RunReport) -> list[str]:
         ("Repositories", f"{summary.repositories} selected", ""),
         ("  ✅ synchronized", str(summary.synchronized), ""),
         ("  ⚠ sync failed", str(summary.sync_failures), ""),
-        ("  ⏭ skipped (no default branch)", str(summary.skipped), ""),
+        ("  ⏭ skipped (no usable checkout)", str(summary.skipped), ""),
         ("Policy evaluations", str(summary.evaluations), ""),
         _summary_row("  ✅", summary.compliant, summary.evaluations),
         _summary_row(
